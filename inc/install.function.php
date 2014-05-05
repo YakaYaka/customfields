@@ -54,55 +54,9 @@ function pluginCustomfieldsInstall()
 
    if (TableExists("glpi_plugin_customfields")) {
 
-      // ** UPGRADE ** //
-
-      // <1.0.1
-
-      if (TableExists("glpi_plugin_customfields_fields")) {
-         if (!FieldExists('glpi_plugin_customfields_fields', 'deleted')) {
-            plugin_customfields_upgradeto101();
-         }
-      }
-
-      // <1.1.2
-      
-      if (TableExists("glpi_plugin_customfields_fields")) {
-         if (!FieldExists('glpi_plugin_customfields_fields', 'required')) {
-            plugin_customfields_upgradeto112();
-         }
-      }
-
-      // <1.1.3
-
-      if (TableExists("glpi_plugin_customfields_fields")) {
-         if (!FieldExists('glpi_plugin_customfields_fields', 'entities')) {
-            plugin_customfields_upgradeto113();
-         }
-      }
-      
-      plugin_customfields_upgradeto116();
-
-      // <1.1.7
-      
-      if (TableExists("glpi_plugin_customfields_fields")) {
-         if (!FieldExists('glpi_plugin_customfields_fields', 'unique')) {
-            plugin_customfields_upgradeto117();
-         }
-      }
-
-      // <1.2
-      
-      if (!TableExists("glpi_plugin_customfields_itemtypes")) {
-         plugin_customfields_upgradeto12();
-      }
-      
-      plugin_customfields_upgradeto110(); // must be at the end : itemtype
-            
-      return true;
+      return pluginCustomFieldsUpgrade();
       
    } else {
-
-      // ** INSTALLATION ** //
 
       // Customfields type configuration table
       
@@ -119,7 +73,7 @@ function pluginCustomfieldsInstall()
       
       $query = "INSERT INTO `glpi_plugin_customfields_itemtypes`
                       (`itemtype`,`enabled`)
-               VALUES ('Version', '12')";
+               VALUES ('Version', '160')";
       $DB->query($query) or die($DB->error());
 
       // Add supported types
@@ -140,7 +94,7 @@ function pluginCustomfieldsInstall()
                        ('DeviceGraphicCard'),
                        ('DeviceSoundCard'), ('DeviceCase'),
                        ('DevicePowerSupply'),
-                       ('DevicePci'), ('Budget')";
+                       ('DevicePci'), ('Budget'), ('ComputerVirtualMachine')";
       $DB->query($query) or die($DB->error());
 
       // Customfields field configuration table
@@ -233,6 +187,60 @@ function pluginCustomfieldsInstall()
 }
 
 /**
+ * Upgrade custom fields plugin
+ * @return bool
+ */
+
+function pluginCustomFieldsUpgrade()
+{
+   global $DB, $LANG;
+   
+   // <1.0.1
+   
+   if (TableExists("glpi_plugin_customfields_fields")) {
+      if (!FieldExists('glpi_plugin_customfields_fields', 'deleted')) {
+         plugin_customfields_upgradeto101();
+      }
+   }
+   
+   // <1.1.2
+   
+   if (TableExists("glpi_plugin_customfields_fields")) {
+      if (!FieldExists('glpi_plugin_customfields_fields', 'required')) {
+         plugin_customfields_upgradeto112();
+      }
+   }
+   
+   // <1.1.3
+   
+   if (TableExists("glpi_plugin_customfields_fields")) {
+      if (!FieldExists('glpi_plugin_customfields_fields', 'entities')) {
+         plugin_customfields_upgradeto113();
+      }
+   }
+   
+   plugin_customfields_upgradeto116();
+   
+   // <1.1.7
+   
+   if (TableExists("glpi_plugin_customfields_fields")) {
+      if (!FieldExists('glpi_plugin_customfields_fields', 'unique')) {
+         plugin_customfields_upgradeto117();
+      }
+   }
+   
+   // <1.2
+   
+   if (!TableExists("glpi_plugin_customfields_itemtypes")) {
+      plugin_customfields_upgradeto12();
+   }
+   
+   plugin_customfields_upgradeto110(); // must be at the end : itemtype
+   
+   return true;
+}
+
+/**
  * Uninstall custom fields plugin
  * @return bool
  */
@@ -288,6 +296,9 @@ function pluginCustomfieldsUninstall()
                            WHERE num IN ($searchopts_keys_str)";
    $DB->query($query) or die($DB->error());
    
+   // TODO : The following query seems never used, but there is code using it !
+   // Needs testing 
+   
    $query = "SELECT `dropdown_table`
              FROM `glpi_plugin_customfields_dropdowns`";
 
@@ -310,7 +321,8 @@ function pluginCustomfieldsUninstall()
       'glpi_plugin_customfields_dropdownsitems',
       'glpi_plugin_customfields_fields',
       'glpi_plugin_customfields_itemtypes',
-      'glpi_plugin_customfields_profiles'
+      'glpi_plugin_customfields_profiles',
+      'glpi_plugin_customfields'
    );
    
    foreach ($tables as $table) {
@@ -788,7 +800,7 @@ function plugin_customfields_upgradeto160() {
 	
       $query = "INSERT INTO `glpi_plugin_customfields_itemtypes`
                       (`itemtype`,`enabled`)
-               VALUES ('Budget', '0')";
+               VALUES ('Budget', '0'), ('ComputerVirtualMachine', '0')";
       $DB->query($query) or die($DB->error());
 			
 	$query = "UPDATE `glpi_plugin_customfields_itemtypes`

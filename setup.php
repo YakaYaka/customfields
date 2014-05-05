@@ -83,26 +83,7 @@ function plugin_init_customfields()
          Plugin::registerClass('PluginCustomfieldsProfile', 
             array('addtabon' => 'Profile')
          );
-      
-         include_once('inc/virtual_classes.php');
-         
-         $query  = "SELECT `itemtype`, `enabled`
-                   FROM `glpi_plugin_customfields_itemtypes`
-                   WHERE `itemtype` <> 'Version'";
-         $result = $DB->query($query);
-         
-         while ($data = $DB->fetch_assoc($result)) {
-            $ALL_CUSTOMFIELDS_TYPES[] = $data['itemtype'];
-            if ($data['enabled']) {
-               $ACTIVE_CUSTOMFIELDS_TYPES[] = $data['itemtype'];
-               Plugin::registerClass('PluginCustomfields' . $data['itemtype'], array(
-                  'addtabon' => array(
-                     $data['itemtype']
-                  )
-               ));
-            }
-         }
-         
+               
          // Display a menu entry in the main menu if the user has
          // configuration rights
 
@@ -137,6 +118,12 @@ function plugin_init_customfields()
       if (Session::haveRight('config', 'w')) {
          $PLUGIN_HOOKS['config_page']['customfields'] = 'front/config.form.php';
       }
+      
+      // TODO : Enable to handle post initialization and combine features 
+      //        with other plugins
+      // Hook for initialization after initialization of all other plugins
+      $PLUGIN_HOOKS['post_init']['customfields'] = 'plugin_customfields_postinit';
+      
    }
 }
 
@@ -151,7 +138,7 @@ function plugin_version_customfields()
    global $LANG;
    return array(
       'name' => $LANG['plugin_customfields']['title'],
-      'author' => 'Oregon State Data Center, Nelly Mahu Lasson',
+      'author' => 'Oregon State Data Center, Nelly Mahu Lasson, Dennis Ploeger, Dethegeek',
       'license' => 'GPLv2+',
       'homepage' => 'https://forge.indepnet.net/projects/show/customfields',
       'minGlpiVersion' => '0.84',
@@ -168,49 +155,51 @@ function plugin_version_customfields()
 
 function plugin_customfields_check_prerequisites()
 {
-   if (GLPI_VERSION >= 0.84) {
+   if (version_compare(GLPI_VERSION, '0.84', 'ge') && version_compare(GLPI_VERSION, '0.85', 'lt')) {
       $plugin = new Plugin();
       
       // Automatically upgrade db (if necessary) when plugin is activated
-      if (
-         Session::haveRight('config', 'w')
-         && $plugin->isActivated("customfields")
-      ) {
+//       if (
+//          Session::haveRight('config', 'w')
+//          && $plugin->isActivated("customfields")
+//       ) {
 
-         global $DB;
-         // Check the version of the database tables.
-         $query     = "SELECT `enabled`
-                    FROM `glpi_plugin_customfields_itemtypes`
-                    WHERE itemtype='Version';";
-         $result    = $DB->query($query);
-         $data      = $DB->fetch_array($result);
-         //Version of the last modification to the plugin tables' structure
-         $dbversion = $data['enabled'];
+//          global $DB;
+//          // Check the version of the database tables.
+//          $query     = "SELECT `enabled`
+//                     FROM `glpi_plugin_customfields_itemtypes`
+//                     WHERE itemtype='Version'
+//                     ORDER BY `enabled` DESC
+//                     LIMIT 1;";
+//          $result    = $DB->query($query);
+//          $data      = $DB->fetch_array($result);
+//          //Version of the last modification to the plugin tables' structure
+//          $dbversion = $data['enabled'];
 
-         if ($dbversion == 12) {
+//          if ($dbversion == 12) {
 
-            $dbversion = 120;
+//             $dbversion = 120;
 
-         }
+//          }
          
-         if ($dbversion < CUSTOMFIELDS_DB_VERSION_REQUIRED) {
+//          if ($dbversion < CUSTOMFIELDS_DB_VERSION_REQUIRED) {
 
-            plugin_customfields_upgrade($dbversion);
+//             plugin_customfields_upgrade($dbversion);
 
-         }
-         if (CUSTOMFIELDS_AUTOACTIVATE) {
+//          }
+//          if (CUSTOMFIELDS_AUTOACTIVATE) {
 
-            plugin_customfields_activate_all_types();
+//             plugin_customfields_activate_all_types();
 
-         }
-      }
+//          }
+//       }
 
       return true;
 
    } else {
 
-      echo "This plugin requires GLPI version 0.84 or higher";
-
+      echo "This plugin requires GLPI >= 0.84 and < 0.85";
+      return false;
    }
 }
 
