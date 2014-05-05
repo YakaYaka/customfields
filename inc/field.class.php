@@ -47,45 +47,14 @@ if (!defined('GLPI_ROOT')) {
 
 class PluginCustomfieldsField extends CommonDBTM
 {
-   
-   static $supported_types = array(
-      
-      "Computer",
-      "ComputerVirtualMachine",
-      "Monitor",
-      "Software",
-      "NetworkEquipment",
-      "Peripheral",
-      "Printer",
-      "CartridgeItem",
-      "ConsumableItem",
-      "Phone",
-      "ComputerDisk",
-      "Supplier",
-      "SoftwareVersion",
-      "SoftwareLicense",
-      "Ticket",
-      "Contact",
-      "Contract",
-      "Document",
-      "User",
-      "Group",
-      "Entity",
-      "DeviceProcessor",
-      "DeviceMemory",
-      "DeviceMotherboard",
-      "DeviceNetworkCard",
-      "DeviceHardDrive",
-      "DeviceDrive",
-      "DeviceControl",
-      "DeviceGraphicCard",
-      "DeviceSoundCard",
-      "DeviceCase",
-      "DevicePowerSupply",
-      "DevicePci",
-      "Budget",
-      "PluginSimcardSimcard"
-   );
+	
+   /**
+    * @see CommonGLPI::getMenuName()
+   **/
+   static function getMenuContent() {
+   	  return 'Custom Fields';
+      return __('Custom Fields');
+   }
 
    /**
     * @see CommonDBTM::getTabNameForItem()
@@ -93,11 +62,11 @@ class PluginCustomfieldsField extends CommonDBTM
 
    function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
    {
-      global $LANG;
+      global $LANG, $ACTIVE_CUSTOMFIELDS_TYPES;
 
-      if (in_array($item->getType(), self::$supported_types)) {
+      if (in_array($item->getType(), $ACTIVE_CUSTOMFIELDS_TYPES)) {
 
-         return $LANG["plugin_customfields"]["title"];
+         return __('Title','customfields');
 
       }
       
@@ -113,10 +82,11 @@ class PluginCustomfieldsField extends CommonDBTM
       $tabnum = 1,
       $withtemplate = 0
    ) {
-
+      global $ACTIVE_CUSTOMFIELDS_TYPES;
+      
       $itemType = $item->getType();
 
-      if (in_array($itemType, self::$supported_types)) {
+      if (in_array($itemType, $ACTIVE_CUSTOMFIELDS_TYPES)) {
 
          $customFieldsItemType = "PluginCustomfields" . $itemType;
          $customFieldsItem     = new $customFieldsItemType();
@@ -143,73 +113,13 @@ class PluginCustomfieldsField extends CommonDBTM
 
       // ACL check
 
-      if (!Session::haveRight("profile", "r")) {
+      if (!Session::haveRight("profile", READ)) {
          //return false;
       }
-
-      switch ($this->associatedItemType()) {
-         case "Contract":
-         case "Document":
-         case "User":
-         case "Group":
-         case "Monitor":
-         case "Software":
-         case "Peripheral":
-         case "Printer":
-         case "CartridgeItem":
-         case "ConsumableItem":
-         case "Phone":
-         case "Budget":
-            $canedit = Session::haveRight(strtolower($this->associatedItemType()), "w");
-            $canread = Session::haveRight(strtolower($this->associatedItemType()), "r");
-            break;
-         // The "networkequipment" right doesn't exist in Session/Rigths variable. It's actually "networking".
-         case "NetworkEquipment":
-            $canedit = Session::haveRight("networking", "w");
-            $canread = Session::haveRight("networking", "r");
-            break;
-         case "Computer":
-         case "ComputerVirtualMachine":
-            $canedit = Session::haveRight("computer", "w");
-            $canread = Session::haveRight("computer", "r");
-            break;
-         case "ComputerDisk":
-         case "DeviceProcessor":
-         case "DeviceMemory":
-         case "DeviceMotherboard":
-         case "DeviceNetworkCard":
-         case "DeviceHardDrive":
-         case "DeviceDrive":
-         case "DeviceControl":
-         case "DeviceGraphicCard":
-         case "DeviceSoundCard":
-         case "DeviceCase":
-         case "DevicePowerSupply":
-         case "DevicePci":
-            $canedit = Session::haveRight("device", "w");
-            $canread = Session::haveRight("device", "r");
-            break;
-         case "Supplier":
-         case "Contact":
-            $canedit = Session::haveRight("contact_enterprise", "w");
-            $canread = Session::haveRight("contact_enterprise", "r");
-            break;
-         case "SoftwareVersion":
-         case "SoftwareLicense":
-            $canedit = Session::haveRight("software", "w");
-            $canread = Session::haveRight("software", "r");
-            break;
-         case "Ticket":
-            $canedit = Session::haveRight("update_ticket", "1");
-            $canread = true;
-            break;
-         case "PluginSimcardSimcard":
-            $canedit = Session::haveRight("simcard", "w");
-            $canread = Session::haveRight("simcard", "r");
-            break;
-         default:
-            $canread = false;
-      }
+      
+      $associatedItemType = $this->associatedItemType();
+      $canread = $associatedItemType::canView();
+      $canedit = $associatedItemType::canUpdate();
       
       if ($canread != true) {
          return false;
@@ -227,7 +137,6 @@ class PluginCustomfieldsField extends CommonDBTM
       }
       
       $itemType           = $this->getType();
-      $associatedItemType = $this->associatedItemType();
       $table              = $itemType::getTable();
       
       $sql    = "SELECT *
@@ -447,7 +356,7 @@ class PluginCustomfieldsField extends CommonDBTM
 
                      break;
                   
-                  case 'text':
+                  case 'notes':
 
                      # Multiline input
 
@@ -490,6 +399,28 @@ class PluginCustomfieldsField extends CommonDBTM
 
                      break;
 
+                  case 'text':
+							
+                     # Textarea
+
+                     if (!$readonly) {
+
+                        echo '<textarea name="'
+                           . $fieldName
+                           . '" rows="4" cols="35">'
+                           . $value
+                           . '</textarea>';
+
+                     } else {
+
+                        plugin_customfields_showValue(
+                           $value,
+                           'height:6em;width:23em;'
+                        );
+
+                     }
+
+                     break;
                }
                
                echo "</td></tr>";
@@ -513,7 +444,7 @@ class PluginCustomfieldsField extends CommonDBTM
             echo "</td></tr>";
          }
       } else {
-         echo $LANG['plugin_customfields']['No_Fields'];
+         echo __('No fields available','customfields');
       }
               
       echo "</table>";
