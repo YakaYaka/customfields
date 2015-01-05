@@ -120,7 +120,13 @@ function plugin_customfields_getAddSearchOptions($itemtype)
 
          $sopt[$i]['table']         = plugin_customfields_table($itemtype);
          $sopt[$i]['field']         = $search['system_name'];
-         $sopt[$i]['linkfield']     = '';
+         if (strpos($_SERVER['SCRIPT_NAME'], "datainjection/ajax/dropdownChooseField.php") === false) {
+         	$sopt[$i]['linkfield']     = '';
+         } else {
+         	// linkfield needs to be filled only to make the custom field visible when 
+         	// creating the data import template
+         	$sopt[$i]['linkfield']     = $search['system_name'];
+         }
          $sopt[$i]['name']          = $LANG['plugin_customfields']['title']
             . " - " . $search['label'];
          $sopt[$i]['massiveaction'] = false;
@@ -128,35 +134,35 @@ function plugin_customfields_getAddSearchOptions($itemtype)
          $sopt[$i]['injectable']    = true;
 
          if ($search['data_type'] == "general") {
-            $opt[$i]['checktype']   = "text";
-            $opt[$i]['displaytype'] = "text";
+            $sopt[$i]['checktype']   = "text";
+            $sopt[$i]['displaytype'] = "text";
          }
          if ($search['data_type'] == "number") {
-            $opt[$i]['checktype']   = "integer";
-            $opt[$i]['displaytype'] = "integer";
+            $sopt[$i]['checktype']   = "integer";
+            $sopt[$i]['displaytype'] = "integer";
          }
          if ($search['data_type'] == "yesno") {
-            $opt[$i]['checktype']   = "bool";
-            $opt[$i]['displaytype'] = "bool";
+            $sopt[$i]['checktype']   = "bool";
+            $sopt[$i]['displaytype'] = "bool";
          }
          if ($search['data_type'] == "date") {
-            $opt[$i]['checktype']   = "date";
-            $opt[$i]['displaytype'] = "date";
+            $sopt[$i]['checktype']   = "date";
+            $sopt[$i]['displaytype'] = "date";
          }
          if ($search['data_type'] == "money") {
-            $opt[$i]['checktype']   = "float";
-            $opt[$i]['displaytype'] = "decimal";
+            $sopt[$i]['checktype']   = "float";
+            $sopt[$i]['displaytype'] = "decimal";
          }
          if ($search['data_type'] == "note") {
-            $opt[$i]['checktype']   = "multiline_text";
-            $opt[$i]['displaytype'] = "multiline_text";
+            $sopt[$i]['checktype']   = "multiline_text";
+            $sopt[$i]['displaytype'] = "multiline_text";
          }
          if ($search['data_type'] == "text") {
-            $opt[$i]['checktype']   = "multiline_text";
-            $opt[$i]['displaytype'] = "multiline_text";
+            $sopt[$i]['checktype']   = "multiline_text";
+            $sopt[$i]['displaytype'] = "multiline_text";
          }
          if ($search['data_type'] == "sectionhead") {
-            $opt[$i]['injectable'] = false;
+            $sopt[$i]['injectable'] = false;
          }
 
          // No option for disable displaypreferences, check page executed
@@ -174,8 +180,10 @@ function plugin_customfields_getAddSearchOptions($itemtype)
          if ($search['data_type'] == "dropdown") {
 
             $sopt[$i]['table']      = 'glpi_plugin_customfields_dropdownsitems';
-            $sopt[$i]['datatype']   = "itemtypename";
-            $sopt[$i]['searchtype'] = "contains";
+            $sopt[$i]['datatype']   = "dropdown";
+            $sopt[$i]['displaytype'] = "dropdown";
+            $sopt[$i]['checktype'] = "text";
+            //$sopt[$i]['searchtype'] = "contains";
             $sopt[$i]['field']      = "name";
             $sopt[$i]['linkfield']  = $search['system_name'];
             $sopt[$i]['joinparams'] = array(
@@ -341,11 +349,12 @@ function plugin_item_purge_customfields($parm)
       in_array($parm->getType(), $ALL_CUSTOMFIELDS_TYPES)
       && ($table = plugin_customfields_table($parm->getType()))
    ) {
-
-      $sql    = "DELETE FROM $table where id=" . $parm->getID();
-
-      $DB->query($sql);
-
+      
+      if (TableExists($table)) {
+         $sql    = "DELETE FROM $table where id=" . $parm->getID();
+         $DB->query($sql);
+      }
+         
       return true;
 
    }
@@ -516,22 +525,18 @@ function plugin_customfields_giveItem($itemtype, $ID, $data, $num, $meta = 0)
 
 /**
  * Initialization of features related to other plugins
- * This method runs after initialization of all plugins   
+ * This function runs after initialization of all plugins   
  * 
  * 
  */
 
 function plugin_customfields_postinit() {
-   global $DB;
+   global $PLUGIN_HOOKS, $DB, $ALL_CUSTOMFIELDS_TYPES, $ACTIVE_CUSTOMFIELDS_TYPES;
    // $plugin = new Plugin();
    // if ($plugin->isInstalled('otherPlugin') && $plugin->isActivated('otherPlugin')) {
       
    // }
-   // TODO : Merge the query and the while loop in virtual_classes.php
-   //        and the query and while loop below
-    
-   include_once('inc/virtual_classes.php');
-    
+
    $query  = "SELECT `itemtype`, `enabled`
                    FROM `glpi_plugin_customfields_itemtypes`
                    WHERE `itemtype` <> 'Version'";
@@ -540,6 +545,7 @@ function plugin_customfields_postinit() {
    while ($data = $DB->fetch_assoc($result)) {
       $ALL_CUSTOMFIELDS_TYPES[] = $data['itemtype'];
       if ($data['enabled']) {
+         include('inc/virtual_classes.php');
          $ACTIVE_CUSTOMFIELDS_TYPES[] = $data['itemtype'];
          Plugin::registerClass('PluginCustomfields' . $data['itemtype'], array(
             'addtabon' => array(
@@ -549,6 +555,22 @@ function plugin_customfields_postinit() {
       }
    }
     
+   // Hooks for add item, update item (for active types)
+
+   foreach ($ACTIVE_CUSTOMFIELDS_TYPES as $type) {
+      $PLUGIN_HOOKS['item_add']['customfields'][$type] =
+         'plugin_item_add_customfields';
+      $PLUGIN_HOOKS['pre_item_update']['customfields'][$type] =
+         'plugin_pre_item_update_customfields';
+   }
+
+   // Hooks for purge item
+   
+   foreach ($ALL_CUSTOMFIELDS_TYPES as $type) {
+      $PLUGIN_HOOKS['item_purge']['customfields'][$type] =
+        'plugin_item_purge_customfields';
+   }
+
 }
 
 // ** SETUP HOOKS ** //
